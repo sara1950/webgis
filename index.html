@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content= "text/html"; charset="UTF-8">
+    <title>WebGIS</title>
+<link rel="stylesheet" href="style.css">
+ 
+<!--OPEN LAYERS 2-->
+ <script type="text/javascript" src="OpenLayers-2.13.1/OpenLayers.js"></script>
+ <script type="text/javascript" src="OpenLayers-2.13.1/OpenLayers.debug.js"></script> 
+ <link rel="stylesheet" href="OpenLayers-2.13.1/theme/default/style.css">   
+
+
+ 
+ <link rel="stylesheet" href="ext/examples/shared/example.css">   
+ <script type="text/javascript" src="ext/examples/shared/options-toolbar.js"></script> 
+ <script type="text/javascript" src="ext/examples/shared/include-ext.js"></script> 
+
+ 
+ 
+ 
+</head>
+<body>
+  
+<div class="map"></div>
+
+
+   
+ <script type="text/javascript">
+Ext.Loader.setConfig ({
+    enabled : true,
+    disableCaching : false,
+    paths : {
+        GeoExt : "GeoExt/src/GeoExt",
+        Ext: "ext/src"
+        
+    }
+});
+
+Ext.require([
+   
+    'GeoExt.tree.OverlayLayerContainer',
+    'GeoExt.tree.BaseLayerContainer',
+    'GeoExt.data.LayerTreeModel',
+	 'GeoExt.Action',
+   'GeoExt.data.AttributeStore',
+   'GeoExt.data.FeatureStore',
+    'GeoExt.selection.FeatureModel',
+    'Ext.grid.GridPanel',
+    'Ext.layout.container.Border',
+	'GeoExt.data.proxy.Protocol',
+	'GeoExt.data.reader.Feature',
+	'Ext.data.reader.Json',
+	'GeoExt.Version',
+	'GeoExt.grid.column.Symbolizer',
+	'Ext.data.JsonStore',
+	 'Ext.data.proxy.Ajax',
+      'Ext.data.reader.Json',
+        'Ext.data.writer.Json',
+		'GeoExt.slider.LayerOpacity',
+    'Ext.form.action.Action',
+    'Ext.form.Panel',
+    'Ext.window.MessageBox'
+
+]);
+
+
+Ext.onReady(function() {
+    //definicija stila prikaza
+var styleMap = new OpenLayers.StyleMap();
+
+
+
+
+  
+var stupnjevi = new OpenLayers.Projection("EPSG:4326");
+var ravninske= new OpenLayers.Projection("EPSG:900913");
+var map = new OpenLayers.Map('map', {
+    
+projection: ravninske,
+	displayProjection: ravninske,
+	units: "m",
+	numZoomLevels: 10
+	
+},
+{ controls: [] });
+
+
+map.addControl(new OpenLayers.Control.ZoomToMaxExtent());
+map.addControl(new OpenLayers.Control.Permalink());
+map.addControl(new OpenLayers.Control.OverviewMap());
+map.addControl(new OpenLayers.Control.KeyboardDefaults());
+
+
+
+            
+      
+//definicija osnovnog i ostalih layera
+
+
+var openstreetmap = new OpenLayers.Layer.OSM();
+    
+
+var dof = new OpenLayers.Layer.WMS(
+	"Digitalni ortofoto",
+		"https://geoportal.dgu.hr/services/inspire/orthophoto_lidar_2022_2023/wms",
+     {layers:"OI.OrthoimageCoverage",
+	 transparent: "true",
+          format:"image/jpeg",
+		 
+	 },
+	
+	 {isBaseLayer:false}
+	);
+
+map.addLayers([ openstreetmap,dof]);
+
+map.setCenter(new OpenLayers.LonLat(1745614.86,5580029.44),6 );
+
+var katastarske_cestice = new OpenLayers.Layer.WMS(
+    "Katastarske čestice",
+    "https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms",
+    {layers:"CP.CadastralParcel",
+        transparent:"true",
+        format:"image/jpeg",
+        opacity:0.5
+    },
+    {isBaseLayer:false}
+);
+
+var katastarske_opcine = new OpenLayers.Layer.WMS(
+    "Katastarske općine",
+    "https://api.uredjenazemlja.hr/services/inspire/cp_wms/wms",
+    {layers:"CP.CadastralZoning",
+        transparent:"true",
+        format:"image/jpeg"
+    },
+    {isBaseLayer:false}
+);
+
+
+
+
+	
+
+
+// var wfs = new OpenLayers.Layer.Vector(
+//             "Zgrade",
+//             {
+//                 strategies: [new OpenLayers.Strategy.Fixed()],
+                
+//                  protocol: new OpenLayers.Protocol.WFS({
+//                     url: 'http://10.10.2.83:9091/geoserver/wfs',
+//                     featurePrefix: 'hz_infra', //geoserver worspace name
+//                     featureType: 'hr.zgrade', //geoserver Layer Name
+//                     featureNS: 'http://medford.opengeo.org/medford', // Edit Workspace Namespace URI
+//                     geometryName: 'the_geom',
+//                     srsName: 'EPSG:3765'
+//                 })
+//             });
+
+//   map.addLayers([wfs]);
+
+//   var selectControl = new OpenLayers.Control.SelectFeature(
+// 	[wfs],
+	
+// {
+// 	clickout:true, toggle:false,
+// 		multiple: false, hover:false
+// });
+// map.addControl(selectControl);
+// selectControl.activate();
+
+
+
+// var drzavna_granica = new OpenLayers.Layer.WMS(
+//     "Državna granica",
+//     "http://gisdev.hzinfra.hr/geocluster/hz_infra/wms",
+//     {layers:"hr.rpj_drzavna_granica",
+//         transparent:"true",
+//         format:"image/jpeg"
+//     },
+//     {isBaseLayer:false}
+// );
+
+// map.addLayers([drzavna_granica]);
+
+var zemljista = new OpenLayers.Layer.Vector("zemljista", {
+    styleMap: new OpenLayers.StyleMap({
+        "default": new OpenLayers.Style({
+                        pointRadius: 6,
+                        fillColor: "green",
+                        strokeColor: '#000000',
+                        strokeWidth: 1
+
+     } )
+    }),
+            protocol: new OpenLayers.Protocol.HTTP({
+                url: "data/zemljista.geojson",
+                format: new OpenLayers.Format.GeoJSON()
+            }),
+            strategies: [new OpenLayers.Strategy.Fixed()],
+            isBasiclayer: false,
+            displayInLayerSwitcher: true,
+            visibility:false
+        }); 
+
+var zgrade = new OpenLayers.Layer.Vector("zgrade", {
+    styleMap: new OpenLayers.StyleMap({
+        "default": new OpenLayers.Style({
+                        pointRadius: 6,
+                        fillColor: "yellow",
+                        strokeColor: '#000000',
+                        strokeWidth: 1
+
+     } )
+    }),
+            protocol: new OpenLayers.Protocol.HTTP({
+                url: "data/zgrade.geojson",
+                format: new OpenLayers.Format.GeoJSON()
+            }),
+            strategies: [new OpenLayers.Strategy.Fixed()],
+            isBasiclayer: false,
+            displayInLayerSwitcher: true,
+            //visibility:false
+        }); 
+
+map.addLayers([zemljista, zgrade]);
+
+zgrade.events.on({
+    "featureselected": function(e){
+        var centar = e.feature.geometry.bounds.getCenterPixel();  
+        var record_zg = e.feature.attributes.sap_id;
+        zumiraj(e.feature);
+        createPopup(e.feature);
+
+    if (record_zg){
+                Ext.Ajax.request ({
+                    url: 'proba.php',
+                    method:'POST',
+                    data:{id:record_zg},
+                    dataType:'json',
+                    params:{id:record_zg},
+                    success: function(response, options){
+                        var provjera = response.responseText.includes ("Warning");
+                        if (provjera == true){
+                            alert ("Upozorenje!Za odabrani objekt nema podataka u bazi podataka!")
+                        }else{
+                        var json = Ext.decode (response.responseText);
+                        db_store.loadData(json.result);
+                        }
+                    },
+                    failure: function(){
+                        alert('Pogreška')
+                    }
+                });
+            }
+        
+}});
+
+function zumiraj(feature){
+    
+    map.zoomToExtent(feature.geometry.bounds.getCenterPixel(),2);
+}
+
+function createPopup(feature){
+
+    if(popup){
+        popup.destroy();
+    }else{
+
+var popup = Ext.create('GeoExt.window.Popup', {
+title:'Atributne informacije',
+location:feature,
+width:350,
+height:150,
+html:"<br/>ID oznaka: "+feature.attributes.sap_id+" <br/> Datum nastanka: "+feature.attributes.created_on +"<br/> Status: "+feature.attributes.status_id+"<br/><br/>",
+maximizable:true,
+collapsible:true,
+padding:'5 5 5 5 '
+});
+    
+
+popup.show();
+
+
+}
+
+}
+
+
+
+var selectControl = new OpenLayers.Control.SelectFeature(
+  [zemljista, zgrade],
+  
+{
+  clickout:true, toggle:false,
+      multiple: false, hover:false
+});
+map.addControl(selectControl);
+selectControl.activate();
+
+
+var zemljista_store = Ext.create('GeoExt.data.FeatureStore',{
+	
+    autoload:true,
+          layer: zemljista,
+          fields:[
+      {name: 'sap_id', type: 'string', mapping:'sap_id'},
+  {name: 'created_on', type: 'datetime', mapping:'created_on'},
+  {name: 'status_id', type: 'integer', mapping:'status_id'},
+ 
+      ]
+  });
+
+
+  var zgrade_store =  Ext.create('GeoExt.data.FeatureStore',{
+    autoload:true,
+          layer: zgrade,
+          fields:[
+      {name: 'sap_id', type: 'string', mapping:'sap_id'},
+  {name: 'created_on', type: 'datetime', mapping:'created_on'},
+  {name: 'status_id', type: 'integer', mapping:'status_id'},
+ 
+      ]
+  });
+
+
+var zemljistaGrid = Ext.create('Ext.grid.GridPanel', {
+         title: "Zemljišta",
+          store: zemljista_store,
+         width: 330,
+         columns: [{
+			header: 'ID Oznaka',
+			dataIndex:'sap_id',
+			width:100
+		},
+		{
+			header: 'Datum nastanka',
+			dataIndex:'created_on',
+			width:150
+		}
+
+
+		],
+         sm: new GeoExt.selection.FeatureModel({
+						autoPanMapOnSelection: true
+						
+					}),
+          selType: 'featuremodel'
+     });
+
+var zgradeGrid = Ext.create('Ext.grid.GridPanel', {
+         title: "Zgrade",
+          store: zgrade_store,
+         width: 330,
+         columns: [{
+			header: 'ID Oznaka',
+			dataIndex:'sap_id',
+			width:100
+		},
+		{
+			header: 'Datum nastanka',
+			dataIndex:'created_on',
+			width:150
+		}
+
+		],
+         sm: new GeoExt.selection.FeatureModel({
+						autoPanMapOnSelection: true
+						
+					}),
+          selType: 'featuremodel'
+     });
+    
+   
+var db_store = new Ext.data.JsonStore ({
+    storeId: 'db_store',
+    proxy: {
+             type: 'ajax',
+              url: 'proba.php',
+              reader: {
+                  type: 'json',
+                  root: 'result',
+                  idProperty: 'id_objekta'
+                  
+             }
+         },
+         fields: ['id_objekta', 'naziv_objekta', 'posjednik', 'grad', 'kat_cestica', 'kat_opcina', 'zkcestica', 'povrsina', 'vlasnici']
+        });
+
+var db_panel = Ext.create('Ext.grid.Panel', {
+    title: 'Podaci iz baze podataka',
+    store: Ext.data.StoreManager.lookup('db_store'),
+    columns: [
+        { text: 'ID objekta',  dataIndex: 'id_objekta', width:150},
+        { text: 'Naziv objekta', dataIndex: 'naziv_objekta',  width:200},
+        { text: 'Grad', dataIndex: 'grad',  width:100},
+        { text: 'Katastarska općina', dataIndex: 'kat_opcina',  width:200},
+        { text: 'Katastarska čestica', dataIndex: 'kat_cestica',  width:200},
+        { text: 'Posjednik', dataIndex: 'posjednik',  width:200},
+        { text: 'ZK čestica', dataIndex: 'zkcestica',  width:150},
+        { text: 'Vlasnik', dataIndex: 'vlasnici',  width:200},
+        { text: 'Površina [m2]', dataIndex: 'povrsina',  width:200},
+
+        
+    ],
+    height: 100,
+    width: 800
+    
+});
+
+zemljista.events.on({
+        "featureselected": function(e){
+            var record = e.feature.data.sap_id;
+            
+            if (record){
+                Ext.Ajax.request ({
+                    url: 'proba.php',
+                    method:'POST',
+                    data:{id:record},
+                    dataType:'json',
+                 
+                    params:{id:record},
+                    success: function(response, options){
+                        var provjera = response.responseText.includes ("Warning");
+                        if (provjera == true){
+                            alert ("Upozorenje!Za odabrani objekt nema podataka u bazi podataka!")
+                        }else{
+                
+                        var json = Ext.decode (response.responseText);
+                        db_store.loadData(json.result);
+                        }
+                    },
+                    failure: function(){
+                        alert('Pogreška')
+                    }
+                });
+            }
+        }
+    });
+
+
+
+var drawing_layer = new OpenLayers.Layer.Vector ("Draw", {
+    styleMap: new OpenLayers.StyleMap({
+        "default": new OpenLayers.Style({
+                        pointRadius: 6,
+                        fillColor: "black",
+                        strokeColor: '#000000',
+                        strokeWidth: 1
+
+     } )
+    })
+});
+
+
+map.addLayer(drawing_layer);
+    
+var drawControl = new OpenLayers.Control.DrawFeature(
+    drawing_layer, OpenLayers.Handler.Polygon,
+    {handlerOptions:{multi:true}}
+);
+
+
+// Definiranje alata za rukovanje kartom
+
+var pan = Ext.create('GeoExt.Action',{
+		tooltip: "Pan",
+        // iconCls: "pomicanje",
+		  text: "Pomicanje",
+            control: new OpenLayers.Control.Navigation(),
+            map: map
+                });
+
+var pan_tool = Ext.create('Ext.Button', pan);
+
+
+var max_extent = Ext.create('GeoExt.Action', {
+          text: "Max Prikaz",
+         control: new OpenLayers.Control.ZoomToMaxExtent(),
+         map: map
+     });
+var max_extent_tool = Ext.create('Ext.Button', max_extent);
+
+var zoombox = Ext.create('GeoExt.Action', {
+    tooltip: "ZoomBox",
+        // iconCls: "pomicanje",
+		  text: "ZoomBox",
+          map:map,
+          enableToggle:true,
+          control: new OpenLayers.Control.ZoomBox(),
+          allowDepress: true,
+          pressed: false
+});
+
+var zoombox_tool = Ext.create('Ext.Button', zoombox);
+
+
+
+var measure_area = Ext.create('GeoExt.Action', {
+        tooltip: "Measure",
+        map:map,
+      // iconCls: "mjerenje",
+      text: "Izmjeri površinu",
+      enableToggle:true,
+      control: new OpenLayers.Control.Measure (OpenLayers.Handler.Polygon,{
+        eventListeners:{
+            measure: function(evt){
+                Ext.MessageBox.show({
+                    title:'Površina:',
+                    buttons:Ext.MessageBox.OK,
+                    width:200,
+                    msg:"Površina:"+ evt.measure.toFixed(2)+" "+ evt.units+"2"})
+                }
+            }
+        })
+      });
+var measure_tool = Ext.create('Ext.Button', measure_area);
+
+var measure_lenght = Ext.create('GeoExt.Action', {
+        tooltip: "Measure",
+        map:map,
+      // iconCls: "mjerenje",
+      text: "Izmjeri duljinu",
+      enableToggle:true,
+      control: new OpenLayers.Control.Measure (OpenLayers.Handler.Path,{
+        eventListeners:{
+            measure: function(evt){
+                Ext.MessageBox.show({
+                    title:'Duljina:',
+                    buttons:Ext.MessageBox.OK,
+                    width:200,
+                    msg:"Duljina iznosi:"+ evt.measure.toFixed(2)+" "+ evt.units})
+                }
+            }
+        })
+      });
+
+      var measure_tool_len = Ext.create('Ext.Button', measure_lenght);
+
+
+var addfeature = Ext.create('GeoExt.Action',{
+    tooltip:"Add",
+    text: "Crtanje",
+            // iconCls: "dodavanje",
+    enableToggle: true,
+    control: drawControl,
+});
+
+var draw_tool = Ext.create('Ext.Button', addfeature);
+
+
+var erasefeature = Ext.create('GeoExt.Action',{
+    tooltip:"Erase",
+    text: "Brisanje",
+            // iconCls: "brisanje",
+    handler: function(){
+        window.location.reload();
+        }
+        });
+    
+
+
+var erase_tool = Ext.create('Ext.Button', erasefeature);
+
+
+
+
+
+
+var mapPanel = Ext.create('GeoExt.panel.Map', {
+        map: map,
+        region: 'center',
+		stateful: true,
+        tbar:[pan_tool, max_extent_tool,zoombox_tool, measure_tool,measure_tool_len, draw_tool, erase_tool]
+        
+      });
+
+
+map.addControl(drawControl); 
+
+    
+  
+map.addControl(
+                new OpenLayers.Control.MousePosition({
+                    prefix:'Easting | Northing </a> koordinate: ',
+                    separator: ' | ',
+                    numDigits: 2,
+                    emptyString: 'Pokazivač nije na karti.'
+					//displayProjection: new OpenLayers.Projection("EPSG:4326")
+                })
+            );
+			
+//definicija kataloga slojeva
+var storeTree = Ext.create('Ext.data.TreeStore',{
+            model:'GeoExt.data.LayerTreeModel',
+            root:{
+                expanded:true,
+                children:[{
+                    //plugins:['gx_layer'],
+                    expanded:true,
+                    leaf:false,
+                    singleClickExpand: true,
+                    qtip: "Double Click to expand/Collapse",
+                    text:'Katalog slojeva',
+                    children:[{
+                        plugins:['gx_layer'],
+                        text:'OSM',
+                        layer:openstreetmap,
+                        leaf:true,
+                        onCheckChange:true
+                    },{
+                        plugins:['gx_layer'],
+                        text:'DOF',
+                        layer:dof,
+                        leaf:true,
+                        onCheckChange:true
+                    },{
+
+                        plugins:['gx_layer'],
+                        text:'zgrade',
+                        layer:zgrade,
+                        leaf:true,
+                        onCheckChange:true
+                        },
+                    
+                    
+                    
+                    {
+
+                        plugins:['gx_layer'],
+                        text:'zemljista',
+                        layer:zemljista,
+                        leaf:true,
+                        onCheckChange:true
+                    }
+                    
+                ]}]}});
+
+
+var tree = Ext.create('GeoExt.tree.Panel',{
+            autoScroll:true,
+            viewConfig:{
+                plugins:[{
+                    ptype:'treeviewdragdrop',
+                    appendOnly:true
+                }]
+            },
+            store:storeTree,
+            rootVisible:false,
+            lines:true
+        });
+
+
+
+   
+var viewport = Ext.create('Ext.container.Viewport', {
+        layout: 'border',
+        items: [{
+            region: 'north',
+            xstyle:'panel',
+            html: '<h1>WebGIS preglednik</h1>',
+            border: false,
+            margin: '0 0 5 0'
+           
+        }, {
+            region: 'west',
+            border: true,
+            split: true,
+            collapsible: true,
+            title: 'Katalog slojeva',
+            width: 150,
+            items:tree
+            
+        }, {
+            region: 'south',
+            collapsible: false,
+            split: true,
+            height: 150,
+            minHeight: 120,
+            items:
+            {layout:'fit',
+            flex:2, 
+            items:db_panel}
+            
+        }, {
+            region: 'east',
+            title: 'Informacije o atributima',
+            layout: 'vbox',
+            border: true,
+            split: true,
+            collapsible: true,
+            width: 260,
+            items: [{
+                layout:'fit',
+            flex:2,
+            items:zemljistaGrid}, 
+            {layout:'fit',
+            flex:2,
+            items:zgradeGrid}]
+        }, {
+            region: 'center',
+            layout:'fit',
+            title: 'Kartografski prikaz',
+            // xtype: 'tabpanel', // TabPanel itself has no title
+            activeTab: 0,      // First tab active by default
+            items: mapPanel
+        }]
+    });
+
+
+
+
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ </script>
+
+
+   
+</body>
+</html>
+
